@@ -1,63 +1,97 @@
 package de.cherry_tea.map_server.map_server.mapData
 
+import org.locationtech.jts.geom.Envelope
+import org.locationtech.jts.geom.GeometryFactory
+import org.locationtech.jts.io.WKBReader
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
-import org.springframework.web.client.RestTemplate
-import org.springframework.web.client.getForObject
-import java.net.URLEncoder
+import java.awt.BasicStroke
+import java.awt.Color
+import java.awt.Graphics2D
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import javax.imageio.ImageIO
+import kotlin.math.PI
+import kotlin.math.atan
+import kotlin.math.exp
 
 @Service
-class MapDataService(private val mapDataRepository: MapDataRepository) {
+class MapDataService(private val jdbcTemplate: JdbcTemplate) {
+    private val tileSize = 256
+    private val geometryFactory = GeometryFactory()
+    private val wkbReader = WKBReader(geometryFactory)
 
-    private val restTemplate = RestTemplate()
-    private val overpassApiUrl = "https://overpass-api.de/api/interpreter"
+    fun generateTile(z: Int, x: Int, y: Int): ByteArray {
+        val envelope = calculateBoundingBox(z, x, y)
+        val features = fetchFeatures(envelope)
 
-    fun getMapArea (latitude: Double, longitude:Double, radius:Double, name:String): MapDataEntity {
-        val query = """
-            [out:json];
-            (
-            node(around:${radius},${latitude},${longitude});
-            );
-            out body;
-            >;
-            out skel qt;
-        """.trimIndent()
+        val image = BufferedImage(tileSize, tileSize, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
 
-        val response = restTemplate.postForObject(
-            overpassApiUrl,
-            "data=${URLEncoder.encode(query, "UTF-8")}",
-            String::class.java
-        )
+        graphics.color = Color.WHITE
+        graphics.fillRect(0, 0, tileSize, tileSize)
 
-        val mapData = MapDataEntity(
-            name = name,
-            latitude = latitude,
-            longitude = longitude,
-            radius = radius,
-            osmData = response?: ""
-        )
+        drawFeatures(graphics, features, envelope)
 
-        return mapDataRepository.save(mapData)
+        graphics.dispose()
+
+        val outputStream = ByteArrayOutputStream()
+        ImageIO.write(image, "png", outputStream)
+        return outputStream.toByteArray()
     }
 
-    fun getMapAreaByName(name: String, radius: Double): MapDataEntity {
-        val (latitude, longitude)= getCoordinatesFromName(name)
-        return getMapArea(latitude,longitude,radius,name)
+    private fun calculateBoundingBox(z: Int, x: Int, y: Int): Envelope {
+        val n = 1 shl z
+        val lonMin = x / n.toDouble() * 360.0 - 180.0
+        val latMin = atan(sinh(PI * (1 - 2 * y / n.toDouble()))).toDegrees()
+        val lonMax = (x + 1) / n.toDouble() * 360.0 - 180.0
+        val latMax = atan(sinh(PI * (1 - 2 * (y + 1) / n.toDouble()))).toDegrees()
+        return Envelope(lonMin, lonMax, latMin, latMax)
     }
 
-    private fun getCoordinatesFromName(name: String): Pair<Double, Double>{
-        val url = "https://nominatim.openstreetmap.org/search?q=${name}&format=json"
-        val response: Array<Map<String, Any>>? = restTemplate.getForObject(url)
-        var latitude: Double = 0.0
-        var longitude: Double = 0.0
+    private fun fetchFeatures(envelope: Envelope): List<FeatureEntity> {
+        val sql = """
+            SELECT ST_AsBinary(geometry) as geom, type
+            FROM features
+            WHERE ST_Intersects(geometry, ST_MakeEnvelope(?, ?, ?, ?, 4326))
+        """
+        return jdbcTemplate.query(sql, { rs, _ ->
+            FeatureEntity(
+                wkbReader.read(rs.getBytes("geom")),
+                rs.getString("type")
+            )
+        }, envelope.minX, envelope.minY, envelope.maxX, envelope.maxY)
+    }
 
-        if (response != null) {
-            response.firstOrNull()?.let{
-                latitude = it["lat"]?.toString()?.toDouble()?:0.0
-                longitude = it["lon"]?.toString()?.toDouble()?:0.0
+    private fun drawFeatures(graphics: Graphics2D, features: List<FeatureEntity>, envelope: Envelope) {
+        features.forEach { feature ->
+            when (feature.type) {
+                "building" -> graphics.color = Color.GRAY
+                "park" -> graphics.color = Color.GREEN
+                "stadium" -> graphics.color = Color.RED
+                else -> graphics.color = Color.BLACK
             }
-        }
+            graphics.stroke = BasicStroke(1f)
 
-        return Pair(latitude,longitude)
+            val coordinates = feature.geometry.coordinates
+            val pixelCoords = coordinates.map { coord ->
+                val x = ((coord.x - envelope.minX) / (envelope.maxX - envelope.minX) * tileSize).toInt()
+                val y = ((envelope.maxY - coord.y) / (envelope.maxY - envelope.minY) * tileSize).toInt()
+                Pair(x, y)
+            }
+
+            val path = java.awt.geom.Path2D.Double()
+            pixelCoords.forEachIndexed { index, (x, y) ->
+                if (index == 0) path.moveTo(x.toDouble(), y.toDouble())
+                else path.lineTo(x.toDouble(), y.toDouble())
+            }
+            path.closePath()
+
+            graphics.fill(path)
+            graphics.draw(path)
+        }
     }
+    fun Double.toDegrees() = this * 180.0 / PI
+    fun sinh(x: Double) = (exp(x) - exp(-x)) / 2
 
 }

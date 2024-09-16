@@ -2,24 +2,31 @@ package de.cherry_tea.map_server.map_server.mapData
 
 import jakarta.persistence.*
 
-@Entity
-@Table(name = "map_areas")
 data class MapDataEntity(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0,
+    val zoom: Int,
+    val x: Int,
+    val y: Int,
+    val data: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
 
-    @Column(nullable = false)
-    val name: String,
+        other as MapDataEntity
 
-    @Column(nullable = false)
-    val latitude: Double,
+        if (zoom != other.zoom) return false
+        if (x != other.x) return false
+        if (y != other.y) return false
+        if (!data.contentEquals(other.data)) return false
 
-    @Column(nullable = false)
-    val longitude: Double,
+        return true
+    }
 
-    @Column(nullable = false)
-    val radius: Double,
-
-    @Column(columnDefinition = "TEXT")
-    val osmData: String
-)
+    override fun hashCode(): Int {
+        var result = zoom
+        result = 31 * result + x
+        result = 31 * result + y
+        result = 31 * result + data.contentHashCode()
+        return result
+    }
+}

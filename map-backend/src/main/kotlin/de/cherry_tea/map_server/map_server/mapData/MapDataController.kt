@@ -1,5 +1,7 @@
 package de.cherry_tea.map_server.map_server.mapData
 
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -7,21 +9,11 @@ import org.springframework.web.bind.annotation.*
 @CrossOrigin(origins = ["http://localhost:3000"])
 class MapController(private val mapDataService: MapDataService) {
 
-    @GetMapping("/coordinates")
-    fun getMapByCoordinates(
-        @RequestParam latitude: Double,
-        @RequestParam longitude: Double,
-        @RequestParam radius: Double,
-        @RequestParam name: String
-    ): MapDataEntity {
-        return mapDataService.getMapArea(latitude, longitude, radius, name)
-    }
-
-    @GetMapping("/place")
-    fun getMapByPlaceName(
-        @RequestParam placeName: String,
-        @RequestParam radius: Double
-    ): MapDataEntity {
-        return mapDataService.getMapAreaByName(placeName, radius)
+    @GetMapping("/tiles/{z}/{x}/{y}.png")
+    fun getTile(@PathVariable z: Int, @PathVariable x: Int, @PathVariable y: Int): ResponseEntity<ByteArray> {
+        val tileData = mapDataService.generateTile(z, x, y)
+        return ResponseEntity.ok()
+            .contentType(MediaType.IMAGE_PNG)
+            .body(tileData)
     }
 }
