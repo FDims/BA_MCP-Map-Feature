@@ -5,15 +5,12 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/map")
-@CrossOrigin(origins = ["http://localhost:3000"])
-class MapController(private val mapDataService: MapDataService) {
+@RequestMapping("/tiles")
+class TileController(@Autowired private val tileService: TileService) {
 
-    @GetMapping("/tiles/{z}/{x}/{y}.png")
+    @GetMapping("/{z}/{x}/{y}.png", produces = [MediaType.IMAGE_PNG_VALUE])
     fun getTile(@PathVariable z: Int, @PathVariable x: Int, @PathVariable y: Int): ResponseEntity<ByteArray> {
-        val tileData = mapDataService.generateTile(z, x, y)
-        return ResponseEntity.ok()
-            .contentType(MediaType.IMAGE_PNG)
-            .body(tileData)
+        val tileData = tileService.renderTile(z, x, y)
+        return ResponseEntity.ok(tileData)
     }
 }
