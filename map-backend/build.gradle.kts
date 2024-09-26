@@ -1,12 +1,12 @@
 plugins {
-	id("org.springframework.boot") version "2.7.5"
-	id("io.spring.dependency-management") version "1.0.15.RELEASE"
-	kotlin("jvm") version "1.6.21"
-	kotlin("plugin.spring") version "1.6.21"
-	kotlin("plugin.jpa") version "1.6.21"
+	kotlin("jvm") version "1.9.25"
+	kotlin("plugin.spring") version "1.9.25"
+	id("org.springframework.boot") version "3.3.3"
+	id("io.spring.dependency-management") version "1.1.6"
+	kotlin("plugin.jpa") version "1.9.25"
 }
 
-group = "de.cherry-tea.map-server"
+group = "de.maptile"
 version = "0.0.1-SNAPSHOT"
 
 java {
@@ -16,7 +16,14 @@ java {
 }
 
 repositories {
-	mavenCentral()
+	mavenCentral {
+		content {
+			excludeGroup("javax.media")
+		}
+	}
+	maven {
+		url = uri("https://repo.osgeo.org/repository/release/")
+	}
 }
 
 dependencies {
@@ -24,23 +31,14 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-
-	// PostgreSQL driver
-	runtimeOnly("org.postgresql:postgresql")
-
-	// Mapnik wrapper for Java (you may need to find or create a Kotlin-specific library)
-	implementation("org.mapnik:mapnik-jni:0.1.0")
-
-	// GeoTools for additional geospatial operations
-	implementation("org.geotools:gt-main:26.0")
-	implementation("org.geotools:gt-epsg-hsql:26.0")
-
-	// Logging
-	implementation("io.github.microutils:kotlin-logging-jvm:2.1.23")
-
-	// Testing
+	implementation("org.postgresql:postgresql")
+	implementation("org.geotools:gt-main:28.0")
+	implementation("org.geotools:gt-epsg-hsql:28.0")
+	implementation("org.geotools:gt-render:28.0")
+	implementation("org.geotools:gt-jdbc:28.0")
+	implementation("org.geotools.jdbc:gt-jdbc-postgis:28.0")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	implementation("javax.annotation:javax.annotation-api:1.3.2")
 }
 
 kotlin {

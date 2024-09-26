@@ -1,1 +1,1 @@
-rootProject.name = "map-server"
+rootProject.name = "maptile-server"

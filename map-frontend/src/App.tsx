@@ -33,7 +33,7 @@ const App: React.FC = () => {
 
   const fetchMapArea = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/map/place", {
+      const response = await axios.get("http://localhost:8080/tile", {
         params: { placeName: input, radius: radius }
       });
       console.log(response)
@@ -89,22 +89,20 @@ const App: React.FC = () => {
           />
           <button onClick={fetchMapArea}>Fetch Map Area</button>
         </div>
-        {error && <p className="error">{error}</p>}
-        {mapArea && (
             <MapContainer
-                center={[mapArea.latitude, mapArea.longitude] as LatLngTuple}
-                zoom={13}
+                center={[550, 347] as LatLngTuple}
+                zoom={10}
                 style={{ height: '400px', width: '100%' }}
             >
               <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               <Circle
-                  center={[mapArea.latitude, mapArea.longitude] as LatLngTuple}
-                  radius={mapArea.radius}
+                  center={[550, 347] as LatLngTuple}
+                  radius={1000}
               >
-                <Popup>{mapArea.name}</Popup>
+                <Popup>{"whatever"}</Popup>
               </Circle>
               {pois.map(poi => (
                   <Marker
@@ -118,7 +116,6 @@ const App: React.FC = () => {
                   </Marker>
               ))}
             </MapContainer>
-        )}
       </div>
   );
 };

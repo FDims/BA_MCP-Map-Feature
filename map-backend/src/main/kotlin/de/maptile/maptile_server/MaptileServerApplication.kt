@@ -1,11 +1,11 @@
-package de.cherry_tea.map_server.map_server
+package de.maptile.maptile_server
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class MapServerApplication
+class MaptileServerApplication
 
 fun main(args: Array<String>) {
-	runApplication<MapServerApplication>(*args)
+	runApplication<MaptileServerApplication>(*args)
 }
