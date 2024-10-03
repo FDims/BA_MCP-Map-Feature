@@ -16,14 +16,7 @@ java {
 }
 
 repositories {
-	mavenCentral {
-		content {
-			excludeGroup("javax.media")
-		}
-	}
-	maven {
-		url = uri("https://repo.osgeo.org/repository/release/")
-	}
+	mavenCentral()
 }
 
 dependencies {
@@ -32,11 +25,6 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 	implementation("org.postgresql:postgresql")
-	implementation("org.geotools:gt-main:28.0")
-	implementation("org.geotools:gt-epsg-hsql:28.0")
-	implementation("org.geotools:gt-render:28.0")
-	implementation("org.geotools:gt-jdbc:28.0")
-	implementation("org.geotools.jdbc:gt-jdbc-postgis:28.0")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	implementation("javax.annotation:javax.annotation-api:1.3.2")
 }
