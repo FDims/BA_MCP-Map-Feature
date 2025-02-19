@@ -13,15 +13,22 @@ class MapController(private val mapService: MapService) {
     fun weclomeFunc(): String{
         return "Welcome, The Server is Working!"
     }
-    @GetMapping("/map-data")
+    @GetMapping("/map-data/bycoordinate")
     fun getMapImage(
         @RequestParam lat: Double,
         @RequestParam lon: Double,
         @RequestParam radiusMeters: Double,
-        @RequestParam(required = false) minZoom: Int?,
-        @RequestParam(required = false) maxZoom: Int?
     ): ResponseEntity<ByteArray> {
-        val imageBytes = mapService.getMapImageForArea(lat, lon, radiusMeters, minZoom, maxZoom)
+        val imageBytes = mapService.getSitePlanImageForArea(lat, lon, radiusMeters)
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(imageBytes)
+    }
+
+    @GetMapping("/map-data/byname")
+    fun getMapImage(
+        @RequestParam placeName : String,
+        @RequestParam radiusMeters: Double,
+    ): ResponseEntity<ByteArray> {
+        val imageBytes = mapService.getSitePlanImageForAreaByName(placeName, radiusMeters)
         return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(imageBytes)
     }
 }

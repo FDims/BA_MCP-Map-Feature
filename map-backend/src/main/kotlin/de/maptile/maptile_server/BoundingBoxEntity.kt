@@ -1,6 +1,6 @@
 package de.maptile.maptile_server
 
-data class BoundingBox(
+data class BoundingBoxEntity(
     val minLat: Double,
     val minLon: Double,
     val maxLat: Double,

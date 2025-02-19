@@ -3,58 +3,74 @@ package de.maptile.maptile_server
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import kotlin.math.*
-import org.slf4j.LoggerFactory
-import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpEntity
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import java.util.*
 import javax.imageio.ImageIO
 
 @Service
 class MapService {
     private val tileServerUrl = "https://tile.openstreetmap.org"
     private val restTemplate = RestTemplate()
-    private val tileSize = 256 // OpenStreetMap uses 256x256 pixel tiles
-    private val log = LoggerFactory.getLogger(MapService::class.java)
+    private val tileSize = 256
 
-    fun getMapImageForArea(lat: Double, lon: Double, radiusMeters: Double, minZoom: Int?, maxZoom: Int?): ByteArray {
-        val zoom = calculateZoomLevel(radiusMeters, minZoom ?: 1, maxZoom ?: 18)
+    fun getSitePlanImageForArea(lat: Double, lon: Double, radiusMeters: Double): ByteArray {
+        val zoom = calculateZoomLevel(radiusMeters)
         val bbox = calculateBoundingBox(lat, lon, radiusMeters)
         val tiles = getTilesInBoundingBox(bbox, zoom)
 
-        val minX = tiles.minOf { it.x }
-        val maxX = tiles.maxOf { it.x }
-        val minY = tiles.minOf { it.y }
-        val maxY = tiles.maxOf { it.y }
+        val minX = tiles.minOf { it.lon }
+        val maxX = tiles.maxOf { it.lon }
+        val minY = tiles.minOf { it.lat }
+        val maxY = tiles.maxOf { it.lat }
 
         val width = (maxX - minX + 1) * tileSize
         val height = (maxY - minY + 1) * tileSize
 
         val combinedImage = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         val g = combinedImage.createGraphics()
-        log.info(tiles.size.toString())
         tiles.forEach { tileCoord ->
             val tileImage = fetchTileImage(tileCoord)
-            g.drawImage(tileImage, (tileCoord.x - minX) * tileSize, (tileCoord.y - minY) * tileSize, null)
+            g.drawImage(
+                tileImage, ((tileCoord.lon - minX) * tileSize),
+                ((tileCoord.lat - minY) * tileSize), null
+            )
         }
 
         g.dispose()
 
         val outputStream = ByteArrayOutputStream()
         ImageIO.write(combinedImage, "png", outputStream)
-        return outputStream.toByteArray()
+        val imageData = outputStream.toByteArray()
+
+        return imageData
     }
 
-    private fun calculateZoomLevel(radiusMeters: Double, minZoom: Int, maxZoom: Int): Int {
+    fun getSitePlanImageForAreaByName(placeName: String, radiusMeters: Double): ByteArray {
+        val url = "https://nominatim.openstreetmap.org/search?q=$placeName&format=json&limit=1"
+        val response = restTemplate.getForObject(url, Array<CoordinateEntity>::class.java)
+
+        if (!response.isNullOrEmpty()) {
+            val location = response[0]
+            val lat = location.lat
+            val lon = location.lon
+            return getSitePlanImageForArea(lat, lon, radiusMeters)
+        }
+
+        throw error("Lagename kann nicht gefunden werden.")
+    }
+
+    // util function
+    private fun calculateZoomLevel(radiusMeters: Double): Int {
         val zoom = (16 - log2(radiusMeters / 1000)).toInt()
-        return zoom.coerceIn(minZoom, maxZoom)
+        return zoom
     }
 
-    private fun calculateBoundingBox(lat: Double, lon: Double, radiusMeters: Double): BoundingBox {
+    private fun calculateBoundingBox(lat: Double, lon: Double, radiusMeters: Double): BoundingBoxEntity {
         val latRadians = Math.toRadians(lat)
         val lonRadians = Math.toRadians(lon)
         val earthRadius = 6378137.0 // in meters
@@ -67,10 +83,10 @@ class MapService {
         val minLon = Math.toDegrees(lonRadians - lonDelta)
         val maxLon = Math.toDegrees(lonRadians + lonDelta)
 
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
+        return BoundingBoxEntity(minLat, minLon, maxLat, maxLon)
     }
 
-    private fun getTilesInBoundingBox(bbox: BoundingBox, zoom: Int): List<TileCoordinate> {
+    private fun getTilesInBoundingBox(bbox: BoundingBoxEntity, zoom: Int): List<TileCoordinateEntity> {
         val minX = lon2tile(bbox.minLon, zoom)
         val maxX = lon2tile(bbox.maxLon, zoom)
         val minY = lat2tile(bbox.maxLat, zoom)
@@ -78,16 +94,16 @@ class MapService {
 
         return (minX..maxX).flatMap { x ->
             (minY..maxY).map { y ->
-                TileCoordinate(x, y, zoom)
+                TileCoordinateEntity(x, y, zoom)
             }
         }
     }
 
-    private fun fetchTileImage(tileCoord: TileCoordinate): BufferedImage? {
-        val url = "$tileServerUrl/${tileCoord.zoom}/${tileCoord.x}/${tileCoord.y}.png"
+    private fun fetchTileImage(tileCoord: TileCoordinateEntity): BufferedImage? {
+        val url = "$tileServerUrl/${tileCoord.zoom}/${tileCoord.lon}/${tileCoord.lat}.png"
 
-        val headers = org.springframework.http.HttpHeaders()
-        headers.set("User-Agent", "MCP/1.0 (fachrial-dimas-putra.perdana@inovex.de)")
+        val headers = HttpHeaders()
+        headers.set("User-Agent", "MCP/1.0 (info@mission-control-paramedic.de)")
 
         val entity = HttpEntity<ByteArray>(headers)
 
